@@ -1,0 +1,370 @@
+---
+title: "**Analysing the impact of extreme weather events in the USA**"
+author: "Pranavi Shekhar"
+date: "11/07/2020"
+output: html_document
+markdown : TRUE
+---
+
+## **Synopsis**
+
+Storms and other severe weather events can cause both public health and economic problems for communities and municipalities. Many severe events can result in fatalities, injuries, and property damage, and preventing such outcomes to the extent possible is a key concern.
+
+This project involves exploring the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, property and crop damage.The events in the database start in the year 1950 and end in November 2011.
+
+## **Loading the relevant libraries**
+
+Before starting anything, load the libraries to be used in the course of the analysis.  
+*ggplot2* is used for plotting and visualizing , *dplyr* for transforming and processing raw data and *formattable* for displaying tabular data.
+
+```{r load libraries, message=FALSE,warning=FALSE}
+knitr::opts_chunk$set(cache = TRUE,comment = "")
+
+library(ggplot2)
+library(dplyr)
+library(formattable)
+library(mgsub)
+library(viridis)
+options(scipen = 999)
+
+```
+
+## **Getting and Loading the data**
+
+The data for this assignment come in the form of a comma-separated-value file compressed via the bzip2 algorithm to reduce its size. The following code downloads the data and saves it in the current directory in the name *StormData.csv.bz2*, which can then be loaded into R.
+
+A description of the data set can be found [here]("https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf")
+
+```{r getting and loading data}
+
+download.file(url="https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2", destfile = "StormData.csv.bz2", method="curl")
+
+#Load the data into R
+data = read.csv("StormData.csv.bz2")
+
+```
+
+## **Understanding the data**
+
+A basic summary of the data set can be viewed using the **str()** command in R
+
+``` {r view summary}
+str(data)
+
+# Store the total number of observations, for future use
+totalobservations = nrow(data)
+```
+
+It can be observed that there are **37 measurements** taken, for each row/observation. Details regarding what each variable represents can be found in the documentation.  
+
+However, we are interested only in learning about the fatalities and injuries caused by each weather event, and its economic impact.  
+
+*Therefore, the columns relevant to us are only the date of event(****BGN_DATE****), type of event(****EVTYPE****), fatalities(****FATALITIES****), injuries(****INJURIES****), property and crop damage (****PROPDMG****, ****PROPDMGEXP****, ****CROPDMG****, ****CROPDMGEXP****)*
+
+## **Data Pre-Processing**
+#  
+
+#### **Basic changes**
+#  
+
+The first step is to keep only the relevant columns, as described in the previous section. The **select()** command of *dplyr* can be used to pick the desired columns.
+
+```{r selecting columns}
+data = select(data,"BGN_DATE","EVTYPE","FATALITIES","INJURIES","PROPDMG","PROPDMGEXP","CROPDMG","CROPDMGEXP")
+```
+
+The column names are then converted to lower case, for easy usage and standard representation.
+
+```{r cols lower case}
+names(data) = tolower(names(data))
+
+#View changed data
+
+str(data)
+
+```
+#  
+
+#### **Re-Encoding exponents**
+#  
+
+The columns ***propdmgexp*** and ***cropdmgexp*** represent the exponent(value to which 10 needs to be raised / power).   
+***propdmg*** and ***cropdmg*** contain the damage in $(called the *mantissa*), after being stripped of zeroes.  
+
+*Hence, to obtain the true monetary value of the damage caused, the corresponding exponent and mantissa observations must be multiplied.*
+
+To understand this, the different types of exponents present in ***propdmgexp*** and ***cropdmgexp*** can be viewed by representing them as factors.   
+This will enable us to view the different categories of exponents, by using  **levels()**
+
+```{r view levels of exponents}
+levels(factor(data$propdmgexp))
+levels(factor(data$cropdmgexp))
+```
+
+The output tells us that the exponents may be numerical i.e. **1,2,3...** to represent the power of ten, or a character **H/K/M/B** to represent 100/1000/1000000/1000000000 respectively (K=thousand , M=Million, B=Billion). Anything else is taken to be 0. 
+
+For analyzing damages we need actual/true monetary values. So, the exponents must be converted to their expanded values/products of 10.   
+
+**Example :** If ***propdmgexp*** is 3/K then we replace it with 1000. Similarly, M/m/6 is encoded as 10^6 = 1000000
+
+This is achieved by using a vector substitution function **mgsub()**
+
+
+```{r encode exponents}
+#Re-encode property damage exponents
+
+data$propdmgexp[which(data$propdmgexp=="")] = 0
+data$propdmgexp[which(data$propdmgexp=="+")] = 0
+data$propdmgexp[data$propdmg>0] = mgsub(data$propdmgexp[data$propdmg>0] , c("-" ,"0" ,"2" ,"3" ,"4" ,"5" ,"6", "7","B","h", "H" ,"K" ,"m" ,"M") , replacement = c(0,1,100,1000,10^4,10^5,10^6,10^7,10^9,100,100,1000,10^6,10^6))
+
+#Re-encode crop damage exponents
+
+data$cropdmgexp[which(data$cropdmgexp=="")]=0
+data$cropdmgexp[data$cropdmg>0] = mgsub(data$cropdmgexp[data$cropdmg>0] , c("0" ,"B", "k", "K", "m", "M") , replacement = c(1,10^9,1000,1000,10^6,10^6))
+```
+
+We only re-encode exponents having mantissas greater than 0 since zero damage has no relevance to the analysis and substitution time can be significantly minimized by omitting them.
+
+#  
+
+#### **Reducing the number of unique event types**
+#  
+
+According to the data set's documentation, there are 48 official event types.       
+
+However, the data itself contains many variations and representations of the official event names, leading to a large number of categories, as shown below.
+
+```{r number of event categories}
+length(unique(data$evtype))
+```
+
+There are a whopping 985 categories of events! To determine whether each category is truly unique, we can take the event *Cold* as an example.
+
+```{r sample event tabulation}
+levels(factor(data$evtype[grep("cold" , data$evtype,ignore.case = TRUE)]))
+```
+
+R will perceive *each* of these as a unique/different category. But according to the documentation, there are only 3 events associated with the cold namely *Cold*,*Cold/Wind Chill* and *Extreme Cold/Wind chill*. All the others are different variations of the same and some others (such as *Snow*) belong in entirely different categories. R considers even the same category name with different capital/small letters as 2 unique categories.
+
+Thus, there are several duplicates of the variables of the same group and cross-category variables, giving rise to a large number of overall categories. Since our entire analysis revolves around grouping variables by event, this could lead to extremely erroneous interpretations.  
+
+*Therefore, the categories need to be condensed in accordance with the official documentation i.e. 985 categories need to be reduced to approximately 48, while accounting for any original categories, unspecified in the code book, that crop up.*
+
+To do this, we first tabulate the frequency of occurrence of each categorical duplicate. Again *Cold* is taken as an example.
+
+```{r tornado categorcial duplicates tabulation}
+table(data$evtype[grep("cold" , data$evtype,ignore.case = TRUE)])
+```
+
+The output depicts that 72 observations were recorded as *COLD* , 539 as *COLD/WINDCHILL* and 1002 as *EXTREME COLD/WIND CHILL*. The only other category with a significant number of observations, not specified int the documentation, is *RECORD COLD*. All the others are negligible.   
+
+Since searching for every variation of an event name would be quite cumbersome, we will use regular expressions identify those categories which have maximum entries (and thus, more significance) and omit the rest (The event name to be searched for is derived from the documentation). The table above is used to identify what pattern to use in **grep()**, so as to cover maximum number of entries.
+
+In our example, the first pattern will be *extreme cold*, with ignore.case set to *TRUE*. This will return indices of all entries containing *extreme cold*, regardless of case. Then we can re-encode all these as *Extreme Cold/Wind Chill*, in accordance with the documentation. 
+
+This process is repeated for all 48 official categories, by taking a look at the frequency table for each, identifying search patterns and then re-encoding. If the results indicate any new majority, unspecified in the documentation, these are also considered. We also need to slice out summary variables from *evtype* using **slice()**.Further, we only consider those events in our data that are recognized by our documentation-inspired search patterns. The rest are omitted.
+
+``` {r re-encoding events}
+data = slice(data , -(grep("^summary",data$evtype,ignore.case = TRUE)))
+
+# Create a vector of all grep search patterns. These are obtained from manual 
+# tabulations of each category followed by identifying the maximum (not shown here).
+
+events = c("Extreme Cold","^Cold/Wind Chill$","^cold$", "record cold", 
+"sleet","lake-effect|lake effect","heavy snow","light snow|moderate snow","^snow$",
+"^avalanche$" , "^blizzard$","^landslide$",
+"coastal flood" , "flash flood","lakeshore","river","urban","^flood$",
+"dense fog|^fog$","freezing fog",
+"Astronomical Low Tide", "smoke",
+"^excessive heat$","drought","^heat wav(e|es)$","^heat$",
+"dust devil","dust storm",
+"Frost/Freeze" , "^Funnel Cloud$",
+"marine hail" , "^hail|TSTM WIND/HAIL",
+"^heavy rai(n|ns)$" , "High Surf",
+"^High win(d|ds)$","Marine High Wind ","hurricane|typhoon" ,
+"^ice storm$",
+"^lightnin(g|gs)$",
+"^Strong Win(d|ds)$", "Marine strong wind",
+"^rip curren(t|ts)$" , "seiche", "Storm Surge",
+"^Thunderstorm Win(d|ds)$|^TSTM WIND$","Marine Thunderstorm Wind|MARINE TSTM WIND",
+"^tornado$",
+"Tropical Depression" , "tropical storm","^winter storm$",
+"tsunami","waterspout","volcanic ash","wildfire","winter weather",
+"wild/forest fire","^dry microburst$")
+
+# Create a vector to specify what category should replace the one being searched for # in events, at the corresponding index.
+# For instance, if events[1] is encountered, we replace it with replacements[1]
+
+replacements = c("Extreme Cold","Cold/Wind Chill","Cold", "Record Cold", 
+"Sleet","Lake-Effect snow","Heavy Snow","Light/Moderate Snow","Snow",
+"Avalanche" , "Blizzard","Landslide",
+"Coastal Flood" , "Flash Flood","Lakeshore flood","River flood","Urban Flood","Floods",
+"Dense Fog","Freezing Fog",
+"Astronomical Low Tide", "Smoke",
+"Excessive Heat","Drought","Heat Wave","Heat",
+"Dust Devil","Dust Storm",
+"Frost/Freeze" , "Funnel Cloud",
+"Marine Hail" , "Hail",
+"Heavy Rain" , "High Surf",
+"High Winds","Marine High Wind","Hurricane/Typhoon" ,
+"Ice Storm",
+"Lightning",
+"Strong Winds", "Marine Strong Wind",
+"Rip Current" , "Seiche", "Storm Surge",
+"Thunderstorm Winds","Marine Thunderstorm Winds",
+"Tornado",
+"Tropical Depression" , "Tropical Storm","Winter Storm",
+"Tsunami","Waterspout","Volcanic Ash","Wildfire","Winter Weather",
+"Wildfire","Dry Microburst")
+
+# Store the final, re-encoded data set in tidy.data
+tidy.data = data.frame()
+
+for(i in 1:length(events))
+{
+  indices = grep(events[i],data$evtype,ignore.case = TRUE)
+  data$evtype[indices] = replacements[i]
+  tidy.data = bind_rows(tidy.data,slice(data,indices))
+}
+
+```
+
+**tidy.data** contains the data set after processing. Let us observe the number of unique categories and the number of observations lost/omitted during conversion.
+
+```{r percentage loss of data}
+# Number of unique categories in tidy data set
+length(unique(tidy.data$evtype))
+
+# Percentage loss of data
+
+((totalobservations - nrow(tidy.data))/totalobservations)*100
+```
+
+We can see that the number of unique categories has been reduced to 55. This is more than the number of categories in the official documentation(48), but it ensures that we have not left out any major ones. 
+
+It can be observed that in the process of reduction we have lost only 0.5% of the data or around 4400 observations. This is acceptable, considering the size of the data set.
+
+## **Results / Exploratory Data analysis**
+
+#  
+
+In this section, we aim to plot the tidy data and observe the results to answer the following questions : 
+
+1. Across the United States, which types of events are most harmful with respect to population health?
+2. Across the United States, which types of events have the greatest economic consequences?
+
+#  
+
+#### **Events most harmful to human health**
+#  
+
+To determine the impact of extreme weather events on human health we need to take stock of the number of fatalities and injuries caused by each. This is achieved using **aggregate()**
+
+```{r aggregate fatalities and injuries}
+
+damage.to.health = aggregate(fatalities+injuries ~ evtype , data = tidy.data , FUN = sum)
+colnames(damage.to.health)[2] = "affected"
+damage.to.health = damage.to.health[order(damage.to.health$affected,decreasing = TRUE),]
+row.names(damage.to.health)=NULL
+head(damage.to.health,2)
+nrow(damage.to.health)
+
+```
+
+**damage.to.health** contains the sum of fatalities and injuries caused by each event, in order of most damaging to least. Since we have 55 events, this matches the number of rows produced. We can now plot the data and observe the top 10 events that affect people the most.
+
+```{r plot damage to health,fig.align="left",fig.cap= "The above plot shows the total number of fatalities and injuries caused by extreme weather events in the USA from 1950-2011. Only the top 10 events most affecting human health have been plotted."}
+
+ggplot(damage.to.health[1:10,] , aes(x = evtype , y = affected,fill = evtype)) + geom_bar(stat = "identity" ) + coord_flip() + labs(x = "Events\n\n" , y = "\n\nTotal Fatalities/Injuries") + theme(axis.text  = element_text(size = 12) , axis.title = element_text(size = 12, face = "bold"),legend.position = "none")  + scale_fill_viridis(discrete = TRUE,begin = 0.8,end=0.1)+expand_limits(y = 100500)
+
+```
+
+*From the plot, it is clear that* ***Tornadoes*** *have the maximum impact on human lives, followed by* ***Thunderstorm Winds****,* ***Excessive Heat*** *and* ***Floods***. ***Tornadoes*** *alone cause almost thrice the amount of damage as the remaining three put together.*
+
+#  
+
+#### **Events with the greatest economic consequences**
+#  
+
+To assess the economic impact caused by the events, we need to determine the cost incurred by the resulting property and crop damage. While re-encoding the exponents we have already seen that *to obtain the true monetary value of the damage caused, the corresponding exponent and mantissa observations must be multiplied.*
+
+This basically means that each entry in ***propdmg*** must be multiplied with the corresponding entry in ***propdmgexp*** and stored in a separate column. The same applies to crop damage as well. We can use **mutate()** to do this.
+
+```{r mutate tidy data and add total damage}
+tidy.data = mutate(tidy.data , actualpropertydamage = as.numeric(tidy.data$propdmg) * as.numeric(tidy.data$propdmgexp) , actualcropdamage = as.numeric(tidy.data$cropdmg) * as.numeric(tidy.data$cropdmgexp))
+```
+
+There are some NA values introduced because we did not re-encode the exponents of mantissas=0 and many of these were character variables - leading to NA values when coerced into numeric formats for multiplication. We can omit these during analysis since they do not contribute to the event sums in any way.
+
+#  
+
+##### **Assessing Property Damage**
+#  
+
+To estimate property damage, we first isolate the relevant data from **tidy.data**. This includes omitting NA values and extracting only property data (leaving crop data).
+
+```{r property data alone}
+property = tidy.data[!is.na(tidy.data$actualpropertydamage),]
+property = property[property$actualpropertydamage > 0,]
+property = select(property , -c("cropdmg","cropdmgexp","actualcropdamage","bgn_date"))
+head(property , 5)
+```
+
+**property** contains the cost of property damage without any NA values and all values of damage costs greater than 0(damage costs are in the column *actualpropertydamage*). Only property values have been retained.
+
+We need to determine total property damage caused by each event. This calls for **aggregate()** with a summing function to compute total damage per event. Further, the impact of each event can be represented as a percentage, for easy interpretability.
+
+```{r event wise property damage}
+
+property = aggregate(actualpropertydamage ~ evtype , data = property , FUN = sum)
+property = mutate(property , percentdamage = (actualpropertydamage/sum(actualpropertydamage)) * 100)  
+property = property[order(property$percentdamage , decreasing = TRUE),]
+head(property,5)
+```
+
+**property** is arranged in descending order of damage, to capture the 10 most damaging events. This is depicted in the plot below.
+
+```{r property plot}
+ggplot(property[1:10,] , aes(x = evtype , y = percentdamage,fill = evtype)) + geom_bar(stat = "identity" ) + coord_flip() + labs(x = "Events\n\n" , y = "\n\nPercentage damage to property") + theme(axis.text  = element_text(size = 12) , axis.title = element_text(size = 12, face = "bold"),legend.position = "none")  + scale_fill_viridis(discrete = TRUE,begin = 0.8,end=0.1)
+```
+
+The above plot depicts the 10 most damaging weather events with respect to cost of property damage.
+
+*From the plot it is evident that* ***Floods*** *account for maximum property damage, followed quite closely by* ***Hurricanes***,***Storm Surges*** *and* ***Tornadoes***. 
+
+#  
+
+##### **Assessing Crop Damage**
+
+The methods employed to calculate event-wise cost of damaged crops follows the same pattern as property damage estimation - isolate applicable crop damage values from the tidy data, aggregate by event, order and then plot. The code below covers the same.
+
+```{r crop damage}
+crops = tidy.data[!is.na(tidy.data$actualcropdamage),]
+crops = crops[crops$actualcropdamage > 0,]
+crops = select(crops , -c("propdmg","propdmgexp","actualpropertydamage","bgn_date"))
+head(crops,5)
+crops = aggregate(actualcropdamage ~ evtype , data = crops , FUN = sum)
+crops = mutate(crops , percentdamage = (actualcropdamage/sum(actualcropdamage)) * 100)  
+crops = crops[order(crops$percentdamage , decreasing = TRUE),]
+head(crops,5)
+
+ggplot(crops[1:10,] , aes(x = evtype , y = percentdamage,fill = evtype)) + geom_bar(stat = "identity" ) + coord_flip() + labs(x = "Events\n\n" , y = "\n\nPercentage damage to crops") + theme(axis.text  = element_text(size = 12) , axis.title = element_text(size = 12, face = "bold"),legend.position = "none")  + scale_fill_viridis(discrete = TRUE,begin = 0.1,end=0.8)
+```
+
+The above plot depicts the 10 most damaging weather events with respect to cost of crop damage.
+
+*From the plot it is evident that* ***Droughts*** *account for maximum damage of crops, followed by* ***Floods***,***Hurricanes*** *and* ***Ice Storms***. 
+
+*Thus,* ***Floods***, ***Hurricanes***, ***Tornadoes***, ***Droughts*** *and* ***Storms*** *have maximum economic significance considering both property and crop damage.*
+
+# 
+
+## **Conclusion**
+
+In this project, we aimed to explore the NOAA Storm Database and gather insights regarding events most harmful to human health and those with a maximum impact on the economy.
+
+From the results of our analysis, we can conclude that ***Tornadoes*** and ***Thunderstorm Winds***  have the most devastating impact on human health while ***Floods***, ***Droughts*** and ***Hurricanes*** have maximum economical consequence. 
+
+#  
+
+
