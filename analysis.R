@@ -1,4 +1,4 @@
-#Load libraries
+#LOAD LIBRARIES
 library(ggplot2)
 library(dplyr)
 library(formattable)
@@ -6,23 +6,23 @@ library(mgsub)
 library(viridis)
 options(scipen = 999)
 
-#Load the data
+#GET AND LAOD THE DATA
 
 download.file(url="https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2", destfile = "StormData.csv.bz2", method="curl")
 data = read.csv("StormData.csv.bz2")
 
 
-#View summary
+#VIEW SUMMARY
 
 str(data)
 nrow(data) = nrow(data)
 
-#Data pre-processing
+#DATA PRE-PROCESSING
 
 #Select relevant columns
 data =select(data,"BGN_DATE","EVTYPE","FATALITIES","INJURIES","PROPDMG","PROPDMGEXP","CROPDMG","CROPDMGEXP")
 
-##Convert col names to lower case
+#Convert col names to lower case
 names(data) = tolower(names(data))
 
 #Encode crop and property exponents
@@ -38,7 +38,8 @@ data$cropdmgexp[data$cropdmg>0] = mgsub(data$cropdmgexp[data$cropdmg>0] , c("0" 
 
 #Reduce number of unique categories
 
-length(unique(data$evtype)) #Tells us num of unique categories
+#Tells us num of unique categories
+length(unique(data$evtype)) 
 
 #Slice out summaries from event type
 
@@ -98,12 +99,13 @@ for(i in 1:length(events))
 }
 
 
-#Percentage
+#Percentage observations lost
 ((nrow(data) - nrow(tidy.data))/nrow(data))*100
 
-#################### End of processing ################
 
-# Question 1 - Plots
+#EXPLORATORY DATA ANALYSIS
+
+#Analyzing impact of each event on human health
 
 damage.to.health = aggregate(fatalities+injuries ~ evtype , data = tidy.data , FUN = sum)
 colnames(damage.to.health)[2] = "affected"
@@ -114,7 +116,7 @@ ggplot(damage.to.health[1:10,] , aes(x = evtype , y = affected,fill = evtype)) +
 row.names(damage.to.health)=NULL
 formattable(damage.to.health[11:15,], align= c("l","c") , col = c("Event" , "Total Fatalities/Injuries") , list(`evtype` = formatter("span", style = ~ style(color = "cornflowerblue")) , `affected` = formatter("span", style = ~ style(color = "coral" , font.weight = "bold"))))
 
-#Question 2 - plots
+#Analyzing impact of each event on economy
 
 tidy.data = mutate(tidy.data , actualpropertydamage = as.numeric(tidy.data$propdmg) * as.numeric(tidy.data$propdmgexp) , actualcropdamage = as.numeric(tidy.data$cropdmg) * as.numeric(tidy.data$cropdmgexp))
 

@@ -3,7 +3,6 @@ title: "**Analysing the impact of extreme weather events in the USA**"
 author: "Pranavi Shekhar"
 date: "11/07/2020"
 output: html_document
-markdown : TRUE
 ---
 
 ## **Synopsis**
