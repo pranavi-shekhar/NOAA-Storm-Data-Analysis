@@ -111,7 +111,8 @@ damage.to.health = aggregate(fatalities+injuries ~ evtype , data = tidy.data , F
 colnames(damage.to.health)[2] = "affected"
 damage.to.health = damage.to.health[order(damage.to.health$affected,decreasing = TRUE),]
  
-ggplot(damage.to.health[1:10,] , aes(x = evtype , y = affected,fill = evtype)) + geom_bar(stat = "identity" ) + coord_flip() + labs(x = "Events\n\n" , y = "\n\nTotal Fatalities/Injuries") + theme(axis.text  = element_text(size = 12) , axis.title = element_text(size = 12, face = "bold"),legend.position = "none")  + scale_fill_viridis(discrete = TRUE,begin = 0.8,end=0.1)+ expand_limits(y = 100500)
+d=ggplot(damage.to.health[1:10,] , aes(x = evtype , y = affected,fill = evtype)) + geom_bar(stat = "identity" ) + coord_flip() + labs(x = "Events\n\n" , y = "\n\nTotal Fatalities/Injuries") + theme(axis.text  = element_text(size = 12) , axis.title = element_text(size = 12, face = "bold"),legend.position = "none")  + scale_fill_viridis(discrete = TRUE,begin = 0.8,end=0.1)+expand_limits(y = 100500)
+ggplotly(d)
 
 row.names(damage.to.health)=NULL
 formattable(damage.to.health[11:15,], align= c("l","c") , col = c("Event" , "Total Fatalities/Injuries") , list(`evtype` = formatter("span", style = ~ style(color = "cornflowerblue")) , `affected` = formatter("span", style = ~ style(color = "coral" , font.weight = "bold"))))
@@ -127,7 +128,8 @@ property = aggregate(actualpropertydamage ~ evtype , data = property , FUN = sum
 property = mutate(property , percentdamage = (actualpropertydamage/sum(actualpropertydamage)) * 100)  
 property = property[order(property$percentdamage , decreasing = TRUE),]
 
-ggplot(property[1:10,] , aes(x = evtype , y = percentdamage,fill = evtype)) + geom_bar(stat = "identity" ) + coord_flip() + labs(x = "Events\n\n" , y = "\n\nPercent damage to property") + theme(axis.text  = element_text(size = 12) , axis.title = element_text(size = 12, face = "bold"),legend.position = "none")  + scale_fill_viridis(discrete = TRUE,begin = 0.8,end=0.1)
+p = ggplot(property[1:10,] , aes(x = evtype , y = percentdamage,fill = evtype)) + geom_bar(stat = "identity" ) + coord_flip() + labs(x = "Events\n\n" , y = "\n\nPercentage damage to property") + theme(axis.text  = element_text(size = 12) , axis.title = element_text(size = 12, face = "bold"),legend.position = "none")  + scale_fill_viridis(discrete = TRUE,begin = 0.8,end=0.1)
+ggplotly(p)
 
 
 crops = tidy.data[!is.na(tidy.data$actualcropdamage),]
@@ -137,4 +139,5 @@ crops = aggregate(actualcropdamage ~ evtype , data = crops , FUN = sum)
 crops = mutate(crops , percentdamage = (actualcropdamage/sum(actualcropdamage)) * 100)  
 crops = crops[order(crops$percentdamage , decreasing = TRUE),]
 
-ggplot(crops[1:10,] , aes(x = evtype , y = percentdamage,fill = evtype)) + geom_bar(stat = "identity" ) + coord_flip() + labs(x = "Events\n\n" , y = "\n\nPercent damage to crops") + theme(axis.text  = element_text(size = 12) , axis.title = element_text(size = 12, face = "bold"),legend.position = "none")  + scale_fill_viridis(discrete = TRUE,begin = 0.1,end=0.8)
+c = ggplot(crops[1:10,] , aes(x = evtype , y = percentdamage,fill = evtype)) + geom_bar(stat = "identity" ) + coord_flip() + labs(x = "Events\n\n" , y = "\n\nPercentage damage to crops") + theme(axis.text  = element_text(size = 12) , axis.title = element_text(size = 12, face = "bold"),legend.position = "none")  + scale_fill_viridis(discrete = TRUE,begin = 0.1,end=0.8)
+ggplotly(c)

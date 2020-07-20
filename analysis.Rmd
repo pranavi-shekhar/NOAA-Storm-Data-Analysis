@@ -21,7 +21,7 @@ knitr::opts_chunk$set(cache = TRUE,comment = "")
 
 library(ggplot2)
 library(dplyr)
-library(formattable)
+library(plotly)
 library(mgsub)
 library(viridis)
 options(scipen = 999)
@@ -274,7 +274,8 @@ nrow(damage.to.health)
 
 ```{r plot damage to health,fig.align="left",fig.cap= "The above plot shows the total number of fatalities and injuries caused by extreme weather events in the USA from 1950-2011. Only the top 10 events most affecting human health have been plotted."}
 
-ggplot(damage.to.health[1:10,] , aes(x = evtype , y = affected,fill = evtype)) + geom_bar(stat = "identity" ) + coord_flip() + labs(x = "Events\n\n" , y = "\n\nTotal Fatalities/Injuries") + theme(axis.text  = element_text(size = 12) , axis.title = element_text(size = 12, face = "bold"),legend.position = "none")  + scale_fill_viridis(discrete = TRUE,begin = 0.8,end=0.1)+expand_limits(y = 100500)
+d=ggplot(damage.to.health[1:10,] , aes(x = evtype , y = affected,fill = evtype)) + geom_bar(stat = "identity" ) + coord_flip() + labs(x = "Events\n\n" , y = "\n\nTotal Fatalities/Injuries") + theme(axis.text  = element_text(size = 12) , axis.title = element_text(size = 12, face = "bold"),legend.position = "none")  + scale_fill_viridis(discrete = TRUE,begin = 0.8,end=0.1)+expand_limits(y = 100500)
+ggplotly(d)
 
 ```
 
@@ -324,7 +325,8 @@ head(property,5)
 **property** is arranged in descending order of damage, to capture the 10 most damaging events. This is depicted in the plot below.
 
 ```{r property plot}
-ggplot(property[1:10,] , aes(x = evtype , y = percentdamage,fill = evtype)) + geom_bar(stat = "identity" ) + coord_flip() + labs(x = "Events\n\n" , y = "\n\nPercentage damage to property") + theme(axis.text  = element_text(size = 12) , axis.title = element_text(size = 12, face = "bold"),legend.position = "none")  + scale_fill_viridis(discrete = TRUE,begin = 0.8,end=0.1)
+p = ggplot(property[1:10,] , aes(x = evtype , y = percentdamage,fill = evtype)) + geom_bar(stat = "identity" ) + coord_flip() + labs(x = "Events\n\n" , y = "\n\nPercentage damage to property") + theme(axis.text  = element_text(size = 12) , axis.title = element_text(size = 12, face = "bold"),legend.position = "none")  + scale_fill_viridis(discrete = TRUE,begin = 0.8,end=0.1)
+ggplotly(p)
 ```
 
 The above plot depicts the 10 most damaging weather events with respect to cost of property damage.
@@ -347,7 +349,8 @@ crops = mutate(crops , percentdamage = (actualcropdamage/sum(actualcropdamage)) 
 crops = crops[order(crops$percentdamage , decreasing = TRUE),]
 head(crops,5)
 
-ggplot(crops[1:10,] , aes(x = evtype , y = percentdamage,fill = evtype)) + geom_bar(stat = "identity" ) + coord_flip() + labs(x = "Events\n\n" , y = "\n\nPercentage damage to crops") + theme(axis.text  = element_text(size = 12) , axis.title = element_text(size = 12, face = "bold"),legend.position = "none")  + scale_fill_viridis(discrete = TRUE,begin = 0.1,end=0.8)
+c = ggplot(crops[1:10,] , aes(x = evtype , y = percentdamage,fill = evtype)) + geom_bar(stat = "identity" ) + coord_flip() + labs(x = "Events\n\n" , y = "\n\nPercentage damage to crops") + theme(axis.text  = element_text(size = 12) , axis.title = element_text(size = 12, face = "bold"),legend.position = "none")  + scale_fill_viridis(discrete = TRUE,begin = 0.1,end=0.8)
+ggplotly(c)
 ```
 
 The above plot depicts the 10 most damaging weather events with respect to cost of crop damage.
