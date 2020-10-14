@@ -2,19 +2,76 @@
 title: "**Analysing the impact of extreme weather events in the USA**"
 author: "Pranavi Shekhar"
 date: "11/07/2020"
-output: html_document
+output: 
+  html_document: 
+    keep_md: yes
+    highlight: pygments
+    theme: yeti
+    toc: true
+    toc_float: 
+      smooth_scroll: false
+    toc_depth: 4
+    
+editor_options: 
+  chunk_output_type: console
 ---
+ 
+```{css, echo=FALSE}
 
+div #TOC li {
+    list-style:none;
+    background-image:none;
+    background-repeat:none;
+    background-position:0;
+  
+}
+div #TOC
+{
+  position: fixed;
+  left: 20px;
+  
+}
+ 
+pre {
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+pre[class] {
+ overflow-x : auto;
+}
+ 
+body
+{
+    position: absolute;
+    left:-70px;
+    top:20px;
+}
+.main-container {
+  max-width: 1500px !important;
+}
+
+.list-group-item.active, .list-group-item.active:focus, .list-group-item.active:hover {
+    background-color: #4682B4;
+}
+```
+
+```{r setup, include=FALSE}
+options(width=200)
+```
+
+ 
 ## **Synopsis**
 
 Storms and other severe weather events can cause both public health and economic problems for communities and municipalities. Many severe events can result in fatalities, injuries, and property damage, and preventing such outcomes to the extent possible is a key concern.
 
 This project involves exploring the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, property and crop damage.The events in the database start in the year 1950 and end in November 2011.
 
-## **Loading the relevant libraries**
+## **1. Loading the relevant libraries**
 
 Before starting anything, load the libraries to be used in the course of the analysis.  
-*ggplot2* is used for plotting and visualizing , *dplyr* for transforming and processing raw data and *formattable* for displaying tabular data.
+
+***ggplot2*** is used for plotting and visualizing , ***dplyr*** for transforming and processing raw data and ***formattable*** for displaying tabular data.
 
 ```{r load libraries, message=FALSE,warning=FALSE}
 knitr::opts_chunk$set(cache = TRUE,comment = "")
@@ -28,11 +85,11 @@ options(scipen = 999)
 
 ```
 
-## **Getting and Loading the data**
+## **2. Getting and Loading the data**
 
 The data for this assignment come in the form of a comma-separated-value file compressed via the bzip2 algorithm to reduce its size. The following code downloads the data and saves it in the current directory in the name *StormData.csv.bz2*, which can then be loaded into R.
 
-A description of the data set can be found [here]("https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf")
+A description of the data set can be found <b>[here](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf)</b>
 
 ```{r getting and loading data}
 
@@ -43,7 +100,7 @@ data = read.csv("StormData.csv.bz2")
 
 ```
 
-## **Understanding the data**
+## **3. Understanding the data**
 
 A basic summary of the data set can be viewed using the **str()** command in R
 
@@ -58,15 +115,15 @@ It can be observed that there are **37 measurements** taken, for each row/observ
 
 However, we are interested only in learning about the fatalities and injuries caused by each weather event, and its economic impact.  
 
-*Therefore, the columns relevant to us are only the date of event(****BGN_DATE****), type of event(****EVTYPE****), fatalities(****FATALITIES****), injuries(****INJURIES****), property and crop damage (****PROPDMG****, ****PROPDMGEXP****, ****CROPDMG****, ****CROPDMGEXP****)*
+*Therefore, the columns relevant to us are only the date of event - *<span style="color : steelblue;">**BGN_DATE**</span>*, type of event - *<span style="color : steelblue;">**EVTYPE**</span>*, fatalities - *<span style="color : steelblue;">**FATALITIES**</span>*, injuries - *<span style="color : steelblue;">**INJURIES**</span>*, property and crop damage - *<span style="color : steelblue;">**PROPDMG**</span>*, *<span style="color : steelblue;">**PROPDMGEXP**</span>*, *<span style="color : steelblue;">**CROPDMG**</span>*, *<span style="color : steelblue;">**CROPDMGEXP**</span>
 
-## **Data Pre-Processing**
-#  
+## **4. Data Pre-Processing**
 
-#### **Basic changes**
-#  
+In this section, we will clean and process the data to ensure that it is in a format suited to our objective. We will decide on the attributes to retain for analysis and re-encode categorical variables to make them consistent.<br>
 
-The first step is to keep only the relevant columns, as described in the previous section. The **select()** command of *dplyr* can be used to pick the desired columns.
+### **4.1. Basic changes**
+
+The first step is to keep only the relevant columns, as described in the previous section. The **select()** command of ***dplyr*** can be used to pick the desired columns.
 
 ```{r selecting columns}
 data = select(data,"BGN_DATE","EVTYPE","FATALITIES","INJURIES","PROPDMG","PROPDMGEXP","CROPDMG","CROPDMGEXP")
@@ -82,10 +139,9 @@ names(data) = tolower(names(data))
 str(data)
 
 ```
-#  
 
-#### **Re-Encoding exponents**
-#  
+
+### **4.2. Re-Encoding exponents**
 
 The columns ***propdmgexp*** and ***cropdmgexp*** represent the exponent(value to which 10 needs to be raised / power).   
 ***propdmg*** and ***cropdmg*** contain the damage in $(called the *mantissa*), after being stripped of zeroes.  
@@ -123,11 +179,9 @@ data$cropdmgexp[data$cropdmg>0] = mgsub(data$cropdmgexp[data$cropdmg>0] , c("0" 
 ```
 
 We only re-encode exponents having mantissas greater than 0 since zero damage has no relevance to the analysis and substitution time can be significantly minimized by omitting them.
+<br>
 
-#  
-
-#### **Reducing the number of unique event types**
-#  
+### **4.3. Reducing the number of unique event types**
 
 According to the data set's documentation, there are 48 official event types.       
 
@@ -243,19 +297,15 @@ We can see that the number of unique categories has been reduced to 55. This is 
 
 It can be observed that in the process of reduction we have lost only 0.5% of the data or around 4400 observations. This is acceptable, considering the size of the data set.
 
-## **Results / Exploratory Data analysis**
-
-#  
+## **5. Results / Exploratory Data analysis**
 
 In this section, we aim to plot the tidy data and observe the results to answer the following questions : 
 
 1. Across the United States, which types of events are most harmful with respect to population health?
 2. Across the United States, which types of events have the greatest economic consequences?
+<br>
 
-#  
-
-#### **Events most harmful to human health**
-#  
+### **5.1. Events most harmful to human health**
 
 To determine the impact of extreme weather events on human health we need to take stock of the number of fatalities and injuries caused by each. This is achieved using **aggregate()**
 
@@ -280,11 +330,9 @@ ggplotly(d)
 ```
 
 *From the plot, it is clear that* ***Tornadoes*** *have the maximum impact on human lives, followed by* ***Thunderstorm Winds****,* ***Excessive Heat*** *and* ***Floods***. ***Tornadoes*** *alone cause almost thrice the amount of damage as the remaining three put together.*
+<br>
 
-#  
-
-#### **Events with the greatest economic consequences**
-#  
+### **5.2. Events with the greatest economic consequences**
 
 To assess the economic impact caused by the events, we need to determine the cost incurred by the resulting property and crop damage. While re-encoding the exponents we have already seen that *to obtain the true monetary value of the damage caused, the corresponding exponent and mantissa observations must be multiplied.*
 
@@ -294,12 +342,9 @@ This basically means that each entry in ***propdmg*** must be multiplied with th
 tidy.data = mutate(tidy.data , actualpropertydamage = as.numeric(tidy.data$propdmg) * as.numeric(tidy.data$propdmgexp) , actualcropdamage = as.numeric(tidy.data$cropdmg) * as.numeric(tidy.data$cropdmgexp))
 ```
 
-There are some NA values introduced because we did not re-encode the exponents of mantissas=0 and many of these were character variables - leading to NA values when coerced into numeric formats for multiplication. We can omit these during analysis since they do not contribute to the event sums in any way.
+There are some NA values introduced because we did not re-encode the exponents of mantissas=0 and many of these were character variables - leading to NA values when coerced into numeric formats for multiplication. We can omit these during analysis since they do not contribute to the event sums in any way.<br><br>
 
-#  
-
-##### **Assessing Property Damage**
-#  
+#### **5.2.1. Assessing Property Damage**
 
 To estimate property damage, we first isolate the relevant data from **tidy.data**. This includes omitting NA values and extracting only property data (leaving crop data).
 
@@ -331,11 +376,9 @@ ggplotly(p)
 
 The above plot depicts the 10 most damaging weather events with respect to cost of property damage.
 
-*From the plot it is evident that* ***Floods*** *account for maximum property damage, followed quite closely by* ***Hurricanes***,***Storm Surges*** *and* ***Tornadoes***. 
+*From the plot it is evident that* ***Floods*** *account for maximum property damage, followed quite closely by* ***Hurricanes***,***Storm Surges*** *and* ***Tornadoes***. <br><br>
 
-#  
-
-##### **Assessing Crop Damage**
+#### **5.2.2. Assessing Crop Damage**
 
 The methods employed to calculate event-wise cost of damaged crops follows the same pattern as property damage estimation - isolate applicable crop damage values from the tidy data, aggregate by event, order and then plot. The code below covers the same.
 
@@ -357,16 +400,11 @@ The above plot depicts the 10 most damaging weather events with respect to cost 
 
 *From the plot it is evident that* ***Droughts*** *account for maximum damage of crops, followed by* ***Floods***,***Hurricanes*** *and* ***Ice Storms***. 
 
-*Thus,* ***Floods***, ***Hurricanes***, ***Tornadoes***, ***Droughts*** *and* ***Storms*** *have maximum economic significance considering both property and crop damage.*
+*Thus,* ***Floods***, ***Hurricanes***, ***Tornadoes***, ***Droughts*** *and* ***Storms*** *have maximum economic significance considering both property and crop damage.*<br>
 
-# 
-
-## **Conclusion**
+## **6. Conclusion**
 
 In this project, we aimed to explore the NOAA Storm Database and gather insights regarding events most harmful to human health and those with a maximum impact on the economy.
 
-From the results of our analysis, we can conclude that ***Tornadoes*** and ***Thunderstorm Winds***  have the most devastating impact on human health while ***Floods***, ***Droughts*** and ***Hurricanes*** have maximum economical consequence. 
-
-#  
-
-
+From the results of our analysis, we can conclude that ***Tornadoes*** and ***Thunderstorm Winds***  have the most devastating impact on human health while ***Floods***, ***Droughts*** and ***Hurricanes*** have maximum economical consequence.
+<br><br>
